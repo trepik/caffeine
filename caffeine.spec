@@ -6,7 +6,8 @@ Summary:        High performance, near optimal caching library based on Java 8
 License:        ASL 2.0
 URL:            https://github.com/ben-manes/%{name}
 Source0:        https://github.com/ben-manes/%{name}/archive/v%{version}.tar.gz
-Source1:	https://repo1.maven.org/maven2/com/github/ben-manes/%{name}/%{name}/%{version}/%{name}-%{version}.pom
+Source1:        https://repo1.maven.org/maven2/com/github/ben-manes/%{name}/%{name}/%{version}/%{name}-%{version}.pom
+Source2:        gen.pom
 
 # remove jacoco and coveralls
 #Patch0:         %%{name}-build.patch
@@ -21,6 +22,7 @@ BuildRequires:  mvn(org.apache.felix:org.apache.felix.framework)
 BuildRequires:  mvn(org.testng:testng)
 BuildRequires:  mvn(org.jctools:jctools-core)
 BuildRequires:  mvn(com.google.guava:guava-testlib)
+BuildRequires:  mvn(org.codehaus.mojo:exec-maven-plugin)
 # missing test dependencies
 #BuildRequires:  mvn(org.hamcrest:java-hamcrest)
 #BuildRequires:  mvn(org.awaitility:awaitility)
@@ -62,6 +64,7 @@ This package contains the API documentation for %{name}.
 %setup -q
 
 cp -p %{SOURCE1} pom.xml
+cp -p %{SOURCE2} .
 
 %pom_xpath_inject "pom:project" "<properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -86,27 +89,18 @@ cp -p %{SOURCE1} pom.xml
     </testResources>
     <pluginManagement>
       <plugins>
-	<plugin>
+          <plugin>
           <artifactId>maven-compiler-plugin</artifactId>
           <version>2.3.2</version>
-	  <configuration>
+          <configuration>
             <source>1.8</source>
             <target>1.8</target>
-	    <showDeprecation>true</showDeprecation>
+            <showDeprecation>true</showDeprecation>
           </configuration>
         </plugin>
       </plugins>
     </pluginManagement>
   </build>"
-
-# remove test dependencies
-%pom_remove_dep org.hamcrest:java-hamcrest
-%pom_remove_dep org.awaitility:awaitility
-%pom_remove_dep org.ops4j.pax.exam:pax-exam-junit4
-%pom_remove_dep com.github.brianfrankcooper.ycsb:core
-%pom_remove_dep org.ops4j.pax.exam:pax-exam-container-native
-%pom_remove_dep org.ops4j.pax.exam:pax-exam-link-mvn
-%pom_remove_dep org.ops4j.pax.url:pax-url-aether
 
 # try to remove missing dependencies
 %pom_remove_dep com.google.errorprone:error_prone_annotations
@@ -114,10 +108,15 @@ cp -p %{SOURCE1} pom.xml
 # remove files using optional dependencies
 
 %build
-%mvn_build
+for class in com.github.benmanes.caffeine.cache.LocalCacheFactoryGenerator \
+        com.github.benmanes.caffeine.cache.NodeFactoryGenerator; do
+  xmvn -B --offline -f gen.pom compile exec:java -Dexec.mainClass=$class -Dexec.args=caffeine/src/main/java
+done
+
+%mvn_build -f
 
 %install
-%mvn_install 
+%mvn_install
 
 %files -f .mfiles
 %doc README.md
