@@ -23,6 +23,7 @@ BuildRequires:  mvn(org.testng:testng)
 BuildRequires:  mvn(org.jctools:jctools-core)
 BuildRequires:  mvn(com.google.guava:guava-testlib)
 BuildRequires:  mvn(org.codehaus.mojo:exec-maven-plugin)
+BuildRequires:  mvn(com.squareup:javapoet)
 # missing test dependencies
 #BuildRequires:  mvn(org.hamcrest:java-hamcrest)
 #BuildRequires:  mvn(org.awaitility:awaitility)
