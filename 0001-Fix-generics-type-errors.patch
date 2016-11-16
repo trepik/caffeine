@@ -1,0 +1,34 @@
+From 0fb7e5d911ab7eba66d83c8218fddd16ea21d0df Mon Sep 17 00:00:00 2001
+From: Michael Simacek <msimacek@redhat.com>
+Date: Wed, 16 Nov 2016 14:12:25 +0100
+Subject: [PATCH] Fix generics type errors
+
+---
+ .../java/com/github/benmanes/caffeine/cache/SerializationProxy.java   | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/caffeine/src/main/java/com/github/benmanes/caffeine/cache/SerializationProxy.java b/caffeine/src/main/java/com/github/benmanes/caffeine/cache/SerializationProxy.java
+index 66b62f1..0e8a9df 100644
+--- a/caffeine/src/main/java/com/github/benmanes/caffeine/cache/SerializationProxy.java
++++ b/caffeine/src/main/java/com/github/benmanes/caffeine/cache/SerializationProxy.java
+@@ -82,7 +82,7 @@ final class SerializationProxy<K, V> implements Serializable {
+       builder.removalListener((RemovalListener<Object, Object>) removalListener);
+     }
+     if (writer != CacheWriter.disabledWriter()) {
+-      builder.writer(writer);
++      builder.writer((CacheWriter<Object, Object>)writer);
+     }
+     return builder;
+   }
+@@ -90,7 +90,7 @@ final class SerializationProxy<K, V> implements Serializable {
+   Object readResolve() {
+     Caffeine<Object, Object> builder = recreateCaffeine();
+     if (async) {
+-      return builder.buildAsync(loader);
++      return builder.buildAsync((CacheLoader<Object, Object>)loader);
+     } else if (loader != null) {
+       @SuppressWarnings("unchecked")
+       CacheLoader<K, V> cacheLoader = (CacheLoader<K, V>) loader;
+-- 
+2.7.4
+
