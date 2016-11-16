@@ -65,16 +65,6 @@ cp -p %{SOURCE2} .
     <testOutputDirectory>target/test-classes</testOutputDirectory>
     <sourceDirectory>caffeine/src/main/java</sourceDirectory>
     <testSourceDirectory>caffeine/src/test/java</testSourceDirectory>
-    <resources>
-      <resource>
-        <directory>caffeine/src/main</directory>
-      </resource>
-    </resources>
-    <testResources>
-      <testResource>
-        <directory>caffeine/src/test</directory>
-      </testResource>
-    </testResources>
     <pluginManagement>
       <plugins>
           <plugin>
@@ -92,8 +82,6 @@ cp -p %{SOURCE2} .
 
 # try to remove missing dependencies
 %pom_remove_dep com.google.errorprone:error_prone_annotations
-
-# remove files using optional dependencies
 
 %build
 for class in com.github.benmanes.caffeine.cache.LocalCacheFactoryGenerator \
