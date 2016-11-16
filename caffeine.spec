@@ -9,31 +9,16 @@ Source0:        https://github.com/ben-manes/%{name}/archive/v%{version}.tar.gz
 Source1:        https://repo1.maven.org/maven2/com/github/ben-manes/%{name}/%{name}/%{version}/%{name}-%{version}.pom
 Source2:        gen.pom
 
-# remove jacoco and coveralls
-#Patch0:         %%{name}-build.patch
+Patch0:         0001-Fix-generics-type-errors.patch
 
 BuildArch:      noarch
 
-# build
 BuildRequires:  maven-local
 BuildRequires:  mvn(com.google.code.findbugs:jsr305)
-BuildRequires:  mvn(org.mockito:mockito-core)
-BuildRequires:  mvn(org.apache.felix:org.apache.felix.framework)
-BuildRequires:  mvn(org.testng:testng)
-BuildRequires:  mvn(org.jctools:jctools-core)
-BuildRequires:  mvn(com.google.guava:guava-testlib)
+BuildRequires:  mvn(com.google.guava:guava)
+BuildRequires:  mvn(org.apache.commons:commons-lang3)
 BuildRequires:  mvn(org.codehaus.mojo:exec-maven-plugin)
 BuildRequires:  mvn(com.squareup:javapoet)
-# missing test dependencies
-#BuildRequires:  mvn(org.hamcrest:java-hamcrest)
-#BuildRequires:  mvn(org.awaitility:awaitility)
-#BuildRequires:  mvn(org.ops4j.pax.exam:pax-exam-junit4)
-#BuildRequires:  mvn(com.github.brianfrankcooper.ycsb:core)
-#BuildRequires:  mvn(org.ops4j.pax.exam:pax-exam-container-native)
-#BuildRequires:  mvn(org.ops4j.pax.exam:pax-exam-link-mvn)
-#BuildRequires:  mvn(org.ops4j.pax.url:pax-url-aether)
-# missing depenedencies
-#BuildRequires:  mvn(com.google.errorprone:error_prone_annotations)
 
 %description
 A Cache is similar to ConcurrentMap, but not quite the same. The most
@@ -64,6 +49,8 @@ This package contains the API documentation for %{name}.
 %prep
 %setup -q
 
+%patch0 -p1
+
 cp -p %{SOURCE1} pom.xml
 cp -p %{SOURCE2} .
 
@@ -78,16 +65,6 @@ cp -p %{SOURCE2} .
     <testOutputDirectory>target/test-classes</testOutputDirectory>
     <sourceDirectory>caffeine/src/main/java</sourceDirectory>
     <testSourceDirectory>caffeine/src/test/java</testSourceDirectory>
-    <resources>
-      <resource>
-        <directory>caffeine/src/main</directory>
-      </resource>
-    </resources>
-    <testResources>
-      <testResource>
-        <directory>caffeine/src/test</directory>
-      </testResource>
-    </testResources>
     <pluginManagement>
       <plugins>
           <plugin>
@@ -105,8 +82,6 @@ cp -p %{SOURCE2} .
 
 # try to remove missing dependencies
 %pom_remove_dep com.google.errorprone:error_prone_annotations
-
-# remove files using optional dependencies
 
 %build
 for class in com.github.benmanes.caffeine.cache.LocalCacheFactoryGenerator \
