@@ -1,15 +1,13 @@
 Name:		caffeine
-Version:	2.3.3
+Version:	2.3.5
 Release:	1%{?dist}
 Summary:	High performance, near optimal caching library based on Java 8
 
 License:	ASL 2.0
 URL:		https://github.com/ben-manes/%{name}
-Source0:	https://github.com/ben-manes/%{name}/archive/v%{version}.tar.gz
+Source0:	https://github.com/ben-manes/%{name}/archive/v%{version}/%{name}-%{version}.tar.gz
 Source1:	https://repo1.maven.org/maven2/com/github/ben-manes/%{name}/%{name}/%{version}/%{name}-%{version}.pom
-Source2:	gen.pom
-
-Patch0:		0001-Fix-generics-type-errors.patch
+Source2:	%{name}-gen.pom
 
 BuildArch:	noarch
 
@@ -18,6 +16,7 @@ BuildRequires:	mvn(com.google.code.findbugs:jsr305)
 BuildRequires:	mvn(com.google.guava:guava)
 BuildRequires:	mvn(org.apache.commons:commons-lang3)
 BuildRequires:	mvn(org.codehaus.mojo:exec-maven-plugin)
+BuildRequires:	mvn(org.apache.felix:maven-bundle-plugin)
 BuildRequires:	mvn(com.squareup:javapoet)
 
 %description
@@ -49,7 +48,7 @@ This package contains the API documentation for %{name}.
 %prep
 %setup -q
 
-%patch0 -p1
+find -name "*.jar" -delete
 
 cp -p %{SOURCE1} pom.xml
 cp -p %{SOURCE2} .
@@ -80,13 +79,34 @@ cp -p %{SOURCE2} .
     </pluginManagement>
   </build>"
 
+%pom_xpath_inject "pom:project" "<packaging>bundle</packaging>"
+%pom_add_plugin org.apache.felix:maven-bundle-plugin . "
+    <extensions>true</extensions>
+      <configuration>
+        <excludeDependencies>true</excludeDependencies>
+        <instructions>
+          <Bundle-SymbolicName>com.github.ben-manes.caffeine</Bundle-SymbolicName>
+          <Bundle-Name>com.github.ben-manes.caffeine</Bundle-Name>
+          <Bundle-Version>\${project.version}</Bundle-Version>
+        </instructions>
+      </configuration>
+    <executions>
+   <execution>
+     <id>bundle-manifest</id>
+     <phase>process-classes</phase>
+     <goals>
+       <goal>manifest</goal>
+     </goals>
+   </execution>
+ </executions>"
+
 # remove missing dependency
 %pom_remove_dep com.google.errorprone:error_prone_annotations
 
 %build
 for class in com.github.benmanes.caffeine.cache.LocalCacheFactoryGenerator \
         com.github.benmanes.caffeine.cache.NodeFactoryGenerator; do
-  xmvn -B --offline -f gen.pom compile exec:java -Dexec.mainClass=$class -Dexec.args=caffeine/src/main/java
+  xmvn -B --offline -f %{name}-gen.pom compile exec:java -Dexec.mainClass=$class -Dexec.args=caffeine/src/main/java
 done
 
 # tests are skipped due to missing dependencies
@@ -103,5 +123,5 @@ done
 %license LICENSE
 
 %changelog
-* Mon Nov 21 2016 Tomas Repik <trepik@redhat.com> - 2.3.3-1
+* Mon Nov 21 2016 Tomas Repik <trepik@redhat.com> - 2.3.5-1
 - initial package
