@@ -28,7 +28,7 @@
  <build>
     <directory>gen</directory>
     <outputDirectory>gen/classes</outputDirectory>
-    <sourceDirectory>caffeine/src/javaPoet/java</sourceDirectory>
+    <sourceDirectory>src/javaPoet/java</sourceDirectory>
     <pluginManagement>
       <plugins>
         <plugin>

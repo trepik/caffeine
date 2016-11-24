@@ -1,3 +1,7 @@
+# depend on guava 20.0 RHBZ#1307246
+%bcond_with guava
+%bcond_with jcache
+
 Name:		caffeine
 Version:	2.3.5
 Release:	1%{?dist}
@@ -8,6 +12,12 @@ URL:		https://github.com/ben-manes/%{name}
 Source0:	https://github.com/ben-manes/%{name}/archive/v%{version}/%{name}-%{version}.tar.gz
 Source1:	https://repo1.maven.org/maven2/com/github/ben-manes/%{name}/%{name}/%{version}/%{name}-%{version}.pom
 Source2:	%{name}-gen.pom
+%if %{with guava}
+Source3:        http://repo1.maven.org/maven2/com/github/ben-manes/%{name}/guava/%{version}/guava-%{version}.pom
+%endif
+%if %{with jcache}
+Source4:        http://repo1.maven.org/maven2/com/github/ben-manes/%{name}/jcache/%{version}/jcache-%{version}.pom
+%endif
 
 BuildArch:	noarch
 
@@ -18,6 +28,10 @@ BuildRequires:	mvn(org.apache.commons:commons-lang3)
 BuildRequires:	mvn(org.codehaus.mojo:exec-maven-plugin)
 BuildRequires:	mvn(org.apache.felix:maven-bundle-plugin)
 BuildRequires:	mvn(com.squareup:javapoet)
+%if %{with jcache}
+BuildRequires:	mvn(org.apache.geronimo.specs:geronimo-jcache_1.0_spec)
+BuildRequires:	mvn(com.typesafe:config)
+%endif
 
 %description
 A Cache is similar to ConcurrentMap, but not quite the same. The most
@@ -39,6 +53,21 @@ notification of evicted (or otherwise removed) entries
 writes propagated to an external resource
 accumulation of cache access statistics
 
+%if %{with guava}
+%package guava
+Summary:	Caffeine Guava extension
+
+%description guava
+An adapter to expose a Caffeine cache through the Guava interfaces.
+%endif
+%if %{with jcache}
+%package jcache
+Summary:	Caffeine JSR-107 JCache extension
+
+%description jcache
+An adapter to expose a Caffeine cache through the JCache interfaces.
+%endif
+
 %package javadoc
 Summary:	Javadoc for %{name}
 
@@ -48,25 +77,46 @@ This package contains the API documentation for %{name}.
 %prep
 %setup -q
 
-find -name "*.jar" -delete
+find -name "*.jar" -print -delete
 
-cp -p %{SOURCE1} pom.xml
-cp -p %{SOURCE2} .
+# This is a dummy POM added just to ease building in the RPM platforms
+cat > pom.xml << EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<project
+  xmlns="http://maven.apache.org/POM/4.0.0"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
 
-%pom_xpath_inject "pom:project" "<properties>
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>com.github.ben-manes.caffeine</groupId>
+  <artifactId>%{name}-parent</artifactId>
+  <version>%{version}</version>
+  <packaging>pom</packaging>
+  <name>Caffeine Parent</name>
+  <modules>
+    <module>%{name}</module>
+    <!-- module>simulator</module -->
+    <!-- module>examples/write-behind-rxjava</module -->
+  </modules>
+</project>
+EOF
+
+cp -p %{SOURCE1} %{name}/pom.xml
+cp -p %{SOURCE2} %{name}/gen.pom
+
+%if %{with guava}
+cp -p %{SOURCE3} guava/pom.xml
+%pom_xpath_inject "pom:project/pom:modules" "<module>guava</module>"
+%pom_xpath_inject "pom:project" "
+<properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-  </properties>"
-
-%pom_xpath_inject "pom:project" "<build>
-    <directory>target</directory>
-    <outputDirectory>target/classes</outputDirectory>
-    <finalName>${artifactId}-${version}</finalName>
-    <testOutputDirectory>target/test-classes</testOutputDirectory>
-    <sourceDirectory>caffeine/src/main/java</sourceDirectory>
-    <testSourceDirectory>caffeine/src/test/java</testSourceDirectory>
+</properties>" guava
+%pom_xpath_inject "pom:project" "
+  <build>
     <pluginManagement>
       <plugins>
-          <plugin>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-compiler-plugin</artifactId>
           <version>2.3.2</version>
           <configuration>
@@ -77,10 +127,105 @@ cp -p %{SOURCE2} .
         </plugin>
       </plugins>
     </pluginManagement>
-  </build>"
+  </build>" guava
 
-%pom_xpath_inject "pom:project" "<packaging>bundle</packaging>"
-%pom_add_plugin org.apache.felix:maven-bundle-plugin . "
+%pom_xpath_set "pom:project/pom:name" "Caffeine guava extension" guava
+%pom_xpath_inject "pom:project" "<packaging>bundle</packaging>" guava
+%pom_add_plugin org.apache.felix:maven-bundle-plugin guava "
+<extensions>true</extensions>
+<configuration>
+  <instructions>
+    <Bundle-SymbolicName>\${project.groupId}.guava</Bundle-SymbolicName>
+    <Bundle-Name>\${project.groupId}.guava</Bundle-Name>
+    <Bundle-Version>\${project.version}</Bundle-Version>
+  </instructions>
+</configuration>
+<executions>
+  <execution>
+    <id>bundle-manifest</id>
+    <phase>process-classes</phase>
+    <goals>
+      <goal>manifest</goal>
+    </goals>
+  </execution>
+</executions>"
+%pom_remove_dep com.google.errorprone:error_prone_annotations guava
+%endif
+
+%if %{with jcache}
+cp -p %{SOURCE4} jcache/pom.xml
+%pom_xpath_inject "pom:project/pom:modules" "<module>jcache</module>"
+%pom_xpath_inject "pom:project" "
+<properties>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+</properties>" jcache
+%pom_xpath_inject "pom:project" "
+  <build>
+    <pluginManagement>
+      <plugins>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-compiler-plugin</artifactId>
+          <version>2.3.2</version>
+          <configuration>
+            <source>1.8</source>
+            <target>1.8</target>
+            <showDeprecation>true</showDeprecation>
+          </configuration>
+        </plugin>
+      </plugins>
+    </pluginManagement>
+  </build>" jcache
+
+%pom_xpath_set "pom:project/pom:name" "Caffeine jcache extension" jcache
+%pom_xpath_inject "pom:project" "<packaging>bundle</packaging>" jcache
+%pom_add_plugin org.apache.felix:maven-bundle-plugin jcache "
+<extensions>true</extensions>
+<configuration>
+  <instructions>
+    <Bundle-SymbolicName>\${project.groupId}.jcache</Bundle-SymbolicName>
+    <Bundle-Name>\${project.groupId}.jcache</Bundle-Name>
+    <Bundle-Version>\${project.version}</Bundle-Version>
+  </instructions>
+</configuration>
+<executions>
+  <execution>
+    <id>bundle-manifest</id>
+    <phase>process-classes</phase>
+    <goals>
+      <goal>manifest</goal>
+    </goals>
+  </execution>
+</executions>"
+%pom_remove_dep com.google.errorprone:error_prone_annotations jcache
+# Use open source JSR-107 apis
+%pom_change_dep javax.cache:cache-api org.apache.geronimo.specs:geronimo-jcache_1.0_spec jcache
+%endif
+
+%pom_xpath_inject "pom:project" "<properties>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+  </properties>" %{name}
+
+%pom_xpath_inject "pom:project" "
+  <build>
+    <pluginManagement>
+      <plugins>
+          <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-compiler-plugin</artifactId>
+          <version>2.3.2</version>
+          <configuration>
+            <source>1.8</source>
+            <target>1.8</target>
+            <showDeprecation>true</showDeprecation>
+          </configuration>
+        </plugin>
+      </plugins>
+    </pluginManagement>
+  </build>" %{name}
+
+%pom_xpath_inject "pom:project" "<packaging>bundle</packaging>" %{name}
+%pom_add_plugin org.apache.felix:maven-bundle-plugin %{name} "
     <extensions>true</extensions>
       <configuration>
         <excludeDependencies>true</excludeDependencies>
@@ -101,23 +246,36 @@ cp -p %{SOURCE2} .
  </executions>"
 
 # remove missing dependency
-%pom_remove_dep com.google.errorprone:error_prone_annotations
+%pom_remove_dep com.google.errorprone:error_prone_annotations %{name}
+
+%mvn_package :%{name}-parent __noinstall
 
 %build
-for class in com.github.benmanes.caffeine.cache.LocalCacheFactoryGenerator \
-        com.github.benmanes.caffeine.cache.NodeFactoryGenerator; do
-  xmvn -B --offline -f %{name}-gen.pom compile exec:java -Dexec.mainClass=$class -Dexec.args=caffeine/src/main/java
-done
+(
+ cd %name
+ for class in com.github.benmanes.caffeine.cache.LocalCacheFactoryGenerator \
+         com.github.benmanes.caffeine.cache.NodeFactoryGenerator; do
+   xmvn -B --offline -f gen.pom compile exec:java -Dexec.mainClass=$class -Dexec.args=src/main/java
+ done
+)
 
 # tests are skipped due to missing dependencies
-%mvn_build -f
+%mvn_build -sf
 
 %install
 %mvn_install
 
-%files -f .mfiles
+%files -f .mfiles-%{name}
 %doc README.md
 %license LICENSE
+
+%if %{with guava}
+%files guava -f .mfiles-guava
+%endif
+
+%if %{with jcache}
+%files jcache -f .mfiles-jcache
+%endif
 
 %files javadoc -f .mfiles-javadoc
 %license LICENSE
